@@ -16,12 +16,40 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
-client.connect((err) => {
-  const collection = client.db("test").collection("devices");
-  // perform actions on the collection object
-  console.log("Database connected.");
-  client.close();
-});
+
+async function run() {
+  try {
+    await client.connect();
+    // service collection
+    const serviceCollection = client
+      .db("igniteVisibility")
+      .collection("service");
+    // pricing collection
+    const pricingCollection = client
+      .db("igniteVisibility")
+      .collection("pricing");
+
+    // service
+    app.get("/services", async (req, res) => {
+      const query = {};
+      const cursor = serviceCollection.find(query);
+      const services = await cursor.toArray();
+      res.send(services);
+    });
+
+    // pricing
+    app.get('/pricing', async(req, res)=>{
+        const query = {}
+        const cursor = pricingCollection.find(query)
+        const pricing = await cursor.toArray()
+        res.send(pricing)
+    })
+
+  } finally {
+    // await client.close()
+  }
+}
+run().catch(console.dir);
 
 app.get("/", (req, res) => {
   res.send("ignite visibility backend server is ready.");
