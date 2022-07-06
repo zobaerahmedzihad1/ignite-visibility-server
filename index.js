@@ -34,7 +34,9 @@ async function run() {
       .db("igniteVisibility")
       .collection("reviews");
     // Order collection
-    const orderCollection = client.db('igniteVisibility').collection('order')
+    const orderCollection = client.db("igniteVisibility").collection("order");
+    // Users Collection
+    const userCollection = client.db("igniteVisibility").collection("users");
 
     // service
     // get all service
@@ -56,17 +58,17 @@ async function run() {
     // load single pricing data dynamically
     app.get("/pricing/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: ObjectId(id)};
+      const query = { _id: ObjectId(id) };
       const singlePricing = await pricingCollection.findOne(query);
       res.send(singlePricing);
     });
 
     // Orders
-    app.post('/order', async (req, res)=>{
-        const order = req.body;
-        const result = await orderCollection.insertOne(order)
-        res.send(result)
-    })
+    app.post("/order", async (req, res) => {
+      const order = req.body;
+      const result = await orderCollection.insertOne(order);
+      res.send(result);
+    });
 
     // reviews
     app.get("/reviews", async (req, res) => {
@@ -76,7 +78,20 @@ async function run() {
       res.send(reviews);
     });
 
-
+    // users
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          plot: user,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result );
+    });
   } finally {
     // await client.close()
   }
