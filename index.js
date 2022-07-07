@@ -1,8 +1,9 @@
 const express = require("express");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const app = express();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const cors = require("cors");
 require("dotenv").config();
 
 // middleware
@@ -90,7 +91,12 @@ async function run() {
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result );
+      const token = jwt.sign(
+        { email: email },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1d" }
+      );
+      res.send({result, token});
     });
   } finally {
     // await client.close()
