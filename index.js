@@ -67,12 +67,26 @@ async function run() {
     // Orders
     app.post("/order", async (req, res) => {
       const order = req.body;
-      const query = {currentPrice: order.currentPrice}
+      const query = { currentPrice: order.currentPrice };
       const exists = await orderCollection.findOne(query);
-      if(exists){
-        return res.send({success: false, message: 'Already You Have Booked'})
+      if (exists) {
+        return res.send({ success: false, message: "Already You Have Booked" });
       }
       const result = await orderCollection.insertOne(order);
+      res.send(result);
+    });
+
+    app.get("/order", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const orders = await orderCollection.find(query).toArray();
+      res.send(orders);
+    });
+    app.get("/payment/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: ObjectId(id) };
+      const result = await orderCollection.findOne(query);
       res.send(result);
     });
 
@@ -83,11 +97,11 @@ async function run() {
       const reviews = await cursor.toArray();
       res.send(reviews);
     });
-    app.post('/reviews', async(req, res)=>{
+    app.post("/reviews", async (req, res) => {
       const review = req.body;
-      const result = await reviewCollection.insertOne(review)
-      res.send(result)
-    })
+      const result = await reviewCollection.insertOne(review);
+      res.send(result);
+    });
 
     // users
     app.put("/user/:email", async (req, res) => {
@@ -106,7 +120,7 @@ async function run() {
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: "1d" }
       );
-      res.send({result, token});
+      res.send({ result, token });
     });
   } finally {
     // await client.close()
