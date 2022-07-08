@@ -67,7 +67,7 @@ async function run() {
     // Orders
     app.post("/order", async (req, res) => {
       const order = req.body;
-      const query = { currentPrice: order.currentPrice };
+      const query = { email: order.email, currentPrice: order.currentPrice };
       const exists = await orderCollection.findOne(query);
       if (exists) {
         return res.send({ success: false, message: "Already You Have Booked" });
@@ -82,6 +82,15 @@ async function run() {
       const orders = await orderCollection.find(query).toArray();
       res.send(orders);
     });
+
+    // delete order
+    app.delete("/order/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await orderCollection.deleteOne(query);
+      res.send(result);
+    });
+
     app.get("/payment/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
