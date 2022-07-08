@@ -67,6 +67,11 @@ async function run() {
     // Orders
     app.post("/order", async (req, res) => {
       const order = req.body;
+      const query = {currentPrice: order.currentPrice}
+      const exists = await orderCollection.findOne(query);
+      if(exists){
+        return res.send({success: false, message: 'Already You Have Booked'})
+      }
       const result = await orderCollection.insertOne(order);
       res.send(result);
     });
@@ -78,6 +83,11 @@ async function run() {
       const reviews = await cursor.toArray();
       res.send(reviews);
     });
+    app.post('/reviews', async(req, res)=>{
+      const review = req.body;
+      const result = await reviewCollection.insertOne(review)
+      res.send(result)
+    })
 
     // users
     app.put("/user/:email", async (req, res) => {
