@@ -5,6 +5,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const stripe = require('stripe')(process.env.STRIPE_PAYMENT_SECRET)
 
 // middleware
 app.use(cors());
@@ -18,6 +19,21 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "UnAuthorized access" });
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
 
 async function run() {
   try {
@@ -67,7 +83,9 @@ async function run() {
     // Orders
     app.post("/order", async (req, res) => {
       const order = req.body;
-      const query = { email: order.email, currentPrice: order.currentPrice };
+
+      const query = { email: order.email, _id: order._id };
+
       const exists = await orderCollection.findOne(query);
       if (exists) {
         return res.send({ success: false, message: "Already You Have Booked" });
@@ -83,6 +101,32 @@ async function run() {
       res.send(orders);
     });
 
+    // payment
+    app.post("/create-payment-intent", async (req, res) => {
+      const service = req.body;
+      const price = service.currentPrice;
+      const amount = price * 100;
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"]
+      });
+      res.send({ clientSecret: paymentIntent.client_secret });
+    });
+
+    // app.post('/create-payment-intent', async(req, res) =>{
+    //   const service = req.body;
+    //   const price = service.currentPrice;
+    //   const amount = price * 100;
+    //   const paymentIntent = await stripe.paymentIntents.create({
+    //     amount : amount,
+    //     currency: "usd",
+    //     payment_method_types:["card"]
+    //   });
+    //   res.send({clientSecret: paymentIntent.client_secret})
+    // });
+
     // delete order
     app.delete("/order/:id", async (req, res) => {
       const id = req.params.id;
@@ -93,7 +137,6 @@ async function run() {
 
     app.get("/payment/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const query = { _id: ObjectId(id) };
       const result = await orderCollection.findOne(query);
       res.send(result);
