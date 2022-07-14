@@ -5,7 +5,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
-const stripe = require('stripe')(process.env.STRIPE_PAYMENT_SECRET)
+const stripe = require("stripe")(process.env.STRIPE_PAYMENT_SECRET);
 
 // middleware
 app.use(cors());
@@ -38,22 +38,21 @@ function verifyJWT(req, res, next) {
 async function run() {
   try {
     await client.connect();
-    // service collection
+
     const serviceCollection = client
       .db("igniteVisibility")
       .collection("service");
-    // pricing collection
     const pricingCollection = client
       .db("igniteVisibility")
       .collection("pricing");
-    // review collection
     const reviewCollection = client
       .db("igniteVisibility")
       .collection("reviews");
-    // Order collection
     const orderCollection = client.db("igniteVisibility").collection("order");
-    // Users Collection
     const userCollection = client.db("igniteVisibility").collection("users");
+    const paymentCollection = client
+      .db("igniteVisibility")
+      .collection("payments");
 
     // service
     // get all service
@@ -100,6 +99,30 @@ async function run() {
       const orders = await orderCollection.find(query).toArray();
       res.send(orders);
     });
+    // update order (payment)
+    app.patch("/order/:id", async (req, res) => {
+      const id = req.params.id;
+      const payment = req.body;
+      console.log(payment, 'server');
+      const filter = { _id: ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          paid: true,
+          transactionId: payment.transactionId,
+        },
+      };
+      const result = await paymentCollection.insertOne(payment);
+      const updatedOrder = await orderCollection.updateOne(filter, updatedDoc);
+      res.send(updatedDoc);
+    });
+
+    // delete order
+    app.delete("/order/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await orderCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // payment
     app.post("/create-payment-intent", async (req, res) => {
@@ -110,29 +133,9 @@ async function run() {
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
-        payment_method_types: ["card"]
+        payment_method_types: ["card"],
       });
       res.send({ clientSecret: paymentIntent.client_secret });
-    });
-
-    // app.post('/create-payment-intent', async(req, res) =>{
-    //   const service = req.body;
-    //   const price = service.currentPrice;
-    //   const amount = price * 100;
-    //   const paymentIntent = await stripe.paymentIntents.create({
-    //     amount : amount,
-    //     currency: "usd",
-    //     payment_method_types:["card"]
-    //   });
-    //   res.send({clientSecret: paymentIntent.client_secret})
-    // });
-
-    // delete order
-    app.delete("/order/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await orderCollection.deleteOne(query);
-      res.send(result);
     });
 
     app.get("/payment/:id", async (req, res) => {
