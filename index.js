@@ -12,7 +12,6 @@ app.use(cors());
 app.use(express.json());
 
 // Database Connection
-
 const uri = `mongodb+srv://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@cluster0.w5uoe.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
@@ -56,7 +55,6 @@ async function run() {
       .collection("payments");
 
     // service
-    // get all service
     app.get("/services", async (req, res) => {
       const query = {};
       const cursor = serviceCollection.find(query);
@@ -65,13 +63,13 @@ async function run() {
     });
 
     // pricing
-    // all pricing data
     app.get("/pricing", async (req, res) => {
       const query = {};
       const cursor = pricingCollection.find(query);
       const pricing = await cursor.toArray();
       res.send(pricing);
     });
+
     // load single pricing data dynamically
     app.get("/pricing/:id", async (req, res) => {
       const id = req.params.id;
@@ -92,12 +90,14 @@ async function run() {
       res.send(result);
     });
 
+    // all orders
     app.get("/order", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const orders = await orderCollection.find(query).toArray();
       res.send(orders);
     });
+
     // update order (payment)
     app.patch("/order/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
@@ -149,6 +149,7 @@ async function run() {
       const reviews = await cursor.toArray();
       res.send(reviews);
     });
+    // post review
     app.post("/reviews", async (req, res) => {
       const review = req.body;
       const result = await reviewCollection.insertOne(review);
@@ -161,31 +162,58 @@ async function run() {
       res.send(users);
     });
 
+    // make admin
     app.put("/user/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
-      console.log(email, 'server');
       const filter = { email: email };
-      const updateDoc = {
-        $set: {
-          role: "admin",
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc);
-      res.send(result);
+      const requester = req.decoded.email;
+      const requesterAccount = await userCollection.findOne({
+        email: requester,
+      });
+      if (requesterAccount.role === "admin") {
+        const updateDoc = {
+          $set: {
+            role: "admin",
+          },
+        };
+        const result = await userCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } else {
+        res.status(403).send({ message: "Forbidden access." });
+      }
     });
 
+    // remove admin access
     app.put("/user/remove-admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
-      console.log(email, 'del');
+      const requester = req.decoded.email;
+      const requesterAccount = await userCollection.findOne({
+        email: requester,
+      });
       const filter = { email: email };
-      const options = { upsert: true };
-      const updateDoc = {
-        $set: {
-          role: " ",
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
+      if (requesterAccount.role === "admin") {
+        const options = { upsert: true };
+        const updateDoc = {
+          $set: {
+            role: " ",
+          },
+        };
+        const result = await userCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      } else {
+        res.status(403).send({ message: "Forbidden access." });
+      }
+    });
+
+    app.get("/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const user = await userCollection.findOne({ email: email });
+      const isAdmin = user?.role === "admin";
+      res.send({ admin: isAdmin });
     });
 
     app.put("/user/:email", async (req, res) => {
@@ -198,6 +226,7 @@ async function run() {
           plot: user,
         },
       };
+
       const result = await userCollection.updateOne(filter, updateDoc, options);
       const token = jwt.sign(
         { email: email },
