@@ -20,10 +20,11 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+// verify jwt
 function verifyJWT(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(401).send({ message: "UnAuthorized access" });
+    return res.status(401).send({ message: "Unauthorized Access" });
   }
   const token = authHeader.split(" ")[1];
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
@@ -82,9 +83,7 @@ async function run() {
     // Orders
     app.post("/order", async (req, res) => {
       const order = req.body;
-
-      const query = { email: order.email, _id: order._id };
-
+      const query = { email: order.email, serviceId: order.serviceId };
       const exists = await orderCollection.findOne(query);
       if (exists) {
         return res.send({ success: false, message: "Already You Have Booked" });
@@ -100,10 +99,9 @@ async function run() {
       res.send(orders);
     });
     // update order (payment)
-    app.patch("/order/:id", async (req, res) => {
+    app.patch("/order/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const payment = req.body;
-      console.log(payment, 'server');
       const filter = { _id: ObjectId(id) };
       const updatedDoc = {
         $set: {
@@ -117,7 +115,7 @@ async function run() {
     });
 
     // delete order
-    app.delete("/order/:id", async (req, res) => {
+    app.delete("/order/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await orderCollection.deleteOne(query);
@@ -125,11 +123,10 @@ async function run() {
     });
 
     // payment
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const service = req.body;
       const price = service.currentPrice;
       const amount = price * 100;
-
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
@@ -138,7 +135,7 @@ async function run() {
       res.send({ clientSecret: paymentIntent.client_secret });
     });
 
-    app.get("/payment/:id", async (req, res) => {
+    app.get("/dashboard/payment/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await orderCollection.findOne(query);
@@ -159,6 +156,38 @@ async function run() {
     });
 
     // users
+    app.get("/users", verifyJWT, async (req, res) => {
+      const users = await userCollection.find().toArray();
+      res.send(users);
+    });
+
+    app.put("/user/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      console.log(email, 'server');
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.put("/user/remove-admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      console.log(email, 'del');
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          role: " ",
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result);
+    });
+
     app.put("/user/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
