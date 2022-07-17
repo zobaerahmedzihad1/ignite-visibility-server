@@ -135,7 +135,6 @@ async function run() {
       });
       res.send({ clientSecret: paymentIntent.client_secret });
     });
-    
 
     // payment history
     app.get("/payment-history/:email", async (req, res) => {
@@ -148,7 +147,7 @@ async function run() {
     app.get("/dashboard/payment/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
-      const result = await paymentCollection.findOne(query);
+      const result = await orderCollection.findOne(query);
       res.send(result);
     });
 
@@ -187,35 +186,13 @@ async function run() {
       }
       res.send(reviews);
     });
-    
+
     // users
     app.get("/users", verifyJWT, async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
     });
 
-    // // user count
-    // app.get("/user-count", async (req, res) => {
-    //   const userCount = await userCollection.estimatedDocumentCount();
-    //   res.send({ count: userCount });
-    // });
-    // // all user data load api
-    // app.get("/all-users", async (req, res) => {
-    //   const page = parseInt(req.query.page);
-    //   const size = parseInt(req.query.size);
-    //   const query = {}
-    //   const cursor = userCollection.find(query);
-    //   let users;
-    //   if (page || size) {
-    //     users = await cursor
-    //       .skip(page * size)
-    //       .limit(size)
-    //       .toArray();
-    //   } else {
-    //     users = await cursor.toArray();
-    //   }
-    //   res.send(users);
-    // });
     // make admin
     app.put("/user/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
