@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const app = express();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+// const { query } = require("express");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_PAYMENT_SECRET);
 
@@ -134,11 +135,20 @@ async function run() {
       });
       res.send({ clientSecret: paymentIntent.client_secret });
     });
+    
+
+    // payment history
+    app.get("/payment-history/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const payments = await paymentCollection.find(filter).toArray();
+      res.send(payments);
+    });
 
     app.get("/dashboard/payment/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
-      const result = await orderCollection.findOne(query);
+      const result = await paymentCollection.findOne(query);
       res.send(result);
     });
 
@@ -155,13 +165,57 @@ async function run() {
       const result = await reviewCollection.insertOne(review);
       res.send(result);
     });
-
+    // review count
+    app.get("/review-count", async (req, res) => {
+      const reviewCount = await reviewCollection.estimatedDocumentCount();
+      res.send({ count: reviewCount });
+    });
+    // manage review
+    app.get("/manage-reviews", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const query = {};
+      const cursor = reviewCollection.find(query);
+      let reviews;
+      if (page || size) {
+        reviews = await cursor
+          .skip(page * size)
+          .limit(size)
+          .toArray();
+      } else {
+        reviews = await cursor.toArray();
+      }
+      res.send(reviews);
+    });
+    
     // users
     app.get("/users", verifyJWT, async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
     });
 
+    // // user count
+    // app.get("/user-count", async (req, res) => {
+    //   const userCount = await userCollection.estimatedDocumentCount();
+    //   res.send({ count: userCount });
+    // });
+    // // all user data load api
+    // app.get("/all-users", async (req, res) => {
+    //   const page = parseInt(req.query.page);
+    //   const size = parseInt(req.query.size);
+    //   const query = {}
+    //   const cursor = userCollection.find(query);
+    //   let users;
+    //   if (page || size) {
+    //     users = await cursor
+    //       .skip(page * size)
+    //       .limit(size)
+    //       .toArray();
+    //   } else {
+    //     users = await cursor.toArray();
+    //   }
+    //   res.send(users);
+    // });
     // make admin
     app.put("/user/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
