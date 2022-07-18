@@ -91,7 +91,7 @@ async function run() {
       res.send(result);
     });
 
-    // all orders
+    // filter order by user gmail
     app.get("/order", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
@@ -121,6 +121,28 @@ async function run() {
       const query = { _id: ObjectId(id) };
       const result = await orderCollection.deleteOne(query);
       res.send(result);
+    });
+    // order count
+    app.get("/order-count", async (req, res) => {
+      const orderCount = await orderCollection.estimatedDocumentCount();
+      res.send({ count: orderCount });
+    });
+    // all orders
+    app.get("/orders", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const query = {};
+      const cursor = orderCollection.find(query);
+      let orders;
+      if (page || size) {
+        orders = await cursor
+          .skip(page * size)
+          .limit(size)
+          .toArray();
+      } else {
+        orders = await cursor.toArray();
+      }
+      res.send(orders);
     });
 
     // payment
@@ -186,6 +208,13 @@ async function run() {
       }
       res.send(reviews);
     });
+    // delete review
+    app.delete("/review-delete/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await reviewCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // users
     app.get("/users", verifyJWT, async (req, res) => {
@@ -196,6 +225,7 @@ async function run() {
     // make admin
     app.put("/user/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
+      // console.log(email, "email");
       const filter = { email: email };
       const requester = req.decoded.email;
       const requesterAccount = await userCollection.findOne({
@@ -208,6 +238,7 @@ async function run() {
           },
         };
         const result = await userCollection.updateOne(filter, updateDoc);
+        // console.log(result, "result");
         res.send(result);
       } else {
         res.status(403).send({ message: "Forbidden access." });
@@ -250,11 +281,12 @@ async function run() {
     app.put("/user/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
+      const displayName = user.name;
       const filter = { email: email };
       const options = { upsert: true };
       const updateDoc = {
         $set: {
-          plot: user,
+          displayName: displayName,
         },
       };
 
