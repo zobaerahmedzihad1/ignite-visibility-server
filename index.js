@@ -122,26 +122,11 @@ async function run() {
       const result = await orderCollection.deleteOne(query);
       res.send(result);
     });
-    // order count
-    app.get("/order-count", async (req, res) => {
-      const orderCount = await orderCollection.estimatedDocumentCount();
-      res.send({ count: orderCount });
-    });
-    // all orders
-    app.get("/orders", async (req, res) => {
-      const page = parseInt(req.query.page);
-      const size = parseInt(req.query.size);
+
+    // all Orders
+    app.get("/orders", verifyJWT, async (req, res) => {
       const query = {};
-      const cursor = orderCollection.find(query);
-      let orders;
-      if (page || size) {
-        orders = await cursor
-          .skip(page * size)
-          .limit(size)
-          .toArray();
-      } else {
-        orders = await cursor.toArray();
-      }
+      const orders = await orderCollection.find(query).toArray();
       res.send(orders);
     });
 
